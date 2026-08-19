@@ -16,13 +16,13 @@ const ReportForm = ({ onReportSubmitted }) => {
 
     try {
       const payload = {
-        ...formData,
-        coordinates: [80.2707, 13.0827] 
+        originalText: formData.originalText,
+        address: formData.address
       };
 
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       await axios.post(`${API_URL}/api/reports`, payload);
-      
+            
       setStatus({ type: 'success', message: 'Report submitted successfully. Thank you for keeping the community safe.' });
       setFormData({ originalText: '', address: '' }); 
       

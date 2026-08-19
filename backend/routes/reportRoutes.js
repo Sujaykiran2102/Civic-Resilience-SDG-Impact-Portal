@@ -1,4 +1,3 @@
-// backend/routes/reportRoutes.js
 const express = require('express');
 const axios = require('axios');
 const Report = require('../models/Report');
@@ -12,16 +11,38 @@ const router = express.Router();
  */
 router.post('/', async (req, res) => {
   try {
-    const { originalText, coordinates, address } = req.body;
+    const { originalText, address } = req.body;
 
-    if (!originalText || !coordinates || coordinates.length !== 2) {
-      return res.status(400).json({ 
-        message: 'Original text and valid coordinates [longitude, latitude] are required.' 
-      });
+    if (!originalText) {
+      return res.status(400).json({ message: 'Original text is required.' });
     }
 
-    // Call the Python AI Microservice
-    // We pass the raw text to let the AI determine language, translate, and categorize
+    // 1. Dynamic Geocoding
+    // We default to a generic Chennai coordinate just in case the API fails
+    let coordinates = [80.2707, 13.0827]; 
+    
+    if (address) {
+      try {
+        // Call the free OpenStreetMap Nominatim API
+        // We append "Chennai, Tamil Nadu" to help narrow down local neighborhood names
+        const searchQuery = encodeURIComponent(`${address}, Chennai, Tamil Nadu`);
+        const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&limit=1`, {
+          headers: { 'User-Agent': 'CivicResiliencePortal/1.0' } // Required by Nominatim policy
+        });
+
+        if (geoResponse.data && geoResponse.data.length > 0) {
+          // MongoDB expects GeoJSON format: [longitude, latitude]
+          coordinates = [
+            parseFloat(geoResponse.data[0].lon), 
+            parseFloat(geoResponse.data[0].lat)
+          ];
+        }
+      } catch (geoError) {
+        console.error('Geocoding failed, falling back to default coordinates:', geoError.message);
+      }
+    }
+
+    // 2. Call the Python AI Microservice
     let aiData = {};
     try {
       const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/api/analyze`, {
@@ -30,12 +51,10 @@ router.post('/', async (req, res) => {
       aiData = aiResponse.data;
     } catch (aiError) {
       console.error('AI Service Error:', aiError.message);
-      return res.status(503).json({ 
-        message: 'AI processing service is currently unavailable. Please try again later.' 
-      });
+      return res.status(503).json({ message: 'AI processing service is currently unavailable.' });
     }
 
-    // Construct and save the report with enriched AI data
+    // 3. Construct and save the report with REAL dynamic coordinates
     const newReport = new Report({
       originalText,
       language: aiData.language || 'unknown',
@@ -44,7 +63,7 @@ router.post('/', async (req, res) => {
       severityLevel: aiData.severityLevel,
       location: {
         type: 'Point',
-        coordinates,
+        coordinates, // Dynamically generated!
         address
       }
     });
@@ -104,6 +123,21 @@ router.get('/analytics', async (req, res) => {
   } catch (error) {
     console.error('Error fetching analytics:', error);
     res.status(500).json({ message: 'Server error fetching analytics' });
+  }
+});
+
+/**
+ * @route   GET /api/reports
+ * @desc    Get all reports (latest first) for mapping
+ * @access  Public
+ */
+router.get('/', async (req, res) => {
+  try {
+    const reports = await Report.find().sort({ createdAt: -1 }).limit(100);
+    res.status(200).json(reports);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).json({ message: 'Server error fetching reports' });
   }
 });
 
