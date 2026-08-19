@@ -1,5 +1,5 @@
-/* frontend/src/index.css */
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 body {
   background-color: #f3f4f6;

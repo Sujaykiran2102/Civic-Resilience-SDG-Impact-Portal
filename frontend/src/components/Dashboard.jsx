@@ -1,9 +1,8 @@
-// frontend/src/components/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { Activity } from 'lucide-react';
-
+import { getSdgColor } from '../utils/sdgColors';
 
 const Dashboard = ({ refreshTrigger }) => {
   const [data, setData] = useState([]);
@@ -17,6 +16,7 @@ const Dashboard = ({ refreshTrigger }) => {
         
         const formattedData = response.data.map(item => ({
           name: `SDG ${item.sdgCategory}`,
+          sdgNumber: item.sdgCategory, // Store the raw number for the color map
           Total: item.count,
           Critical: item.criticalSeverityCount,
           High: item.highSeverityCount
@@ -33,7 +33,6 @@ const Dashboard = ({ refreshTrigger }) => {
     fetchAnalytics();
   }, [refreshTrigger]);
 
-
   if (loading) return <div className="text-center p-10 text-gray-600">Loading analytics...</div>;
 
   return (
@@ -45,10 +44,7 @@ const Dashboard = ({ refreshTrigger }) => {
       
       <div className="h-96 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          >
+          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
             <XAxis dataKey="name" axisLine={false} tickLine={false} />
             <YAxis axisLine={false} tickLine={false} />
@@ -57,9 +53,13 @@ const Dashboard = ({ refreshTrigger }) => {
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
             />
             <Legend wrapperStyle={{ paddingTop: '20px' }} />
-            <Bar dataKey="Total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="High" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Critical" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            
+            {/* The main Total bar now maps exactly to the UN SDG Hex palette */}
+            <Bar dataKey="Total" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={getSdgColor(entry.sdgNumber)} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

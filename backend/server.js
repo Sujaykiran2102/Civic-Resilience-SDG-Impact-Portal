@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const reportRoutes = require('./routes/reportRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Initialize Express app
 const app = express();
@@ -17,6 +18,7 @@ app.use(express.json()); // Parse incoming JSON payloads
 
 // Mount Routes
 app.use('/api/reports', reportRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Basic health check endpoint
 app.get('/health', (req, res) => {
